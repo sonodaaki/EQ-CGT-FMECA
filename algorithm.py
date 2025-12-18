@@ -121,18 +121,6 @@ class MEREC:
 
 class ENTROPY:
     def __init__(self, matrixIn: numpy.ndarray, indicator_type='cost'):
-        """
-        熵权法类
-
-        参数：
-            matrixIn : np.ndarray, shape (m, n)
-                输入数据矩阵，m 为样本数，n 为指标数
-            indicator_type : list of str, 长度为 n
-                指标方向类型:
-                - 'benefit' (效益型，值越大越好)
-                - 'cost' (成本型，值越小越好)
-                默认 None → 全部为效益型
-        """
         self.__inputMatrix = numpy.asarray(matrixIn, dtype=float)
         self.m, self.n = self.__inputMatrix.shape
 
@@ -145,7 +133,6 @@ class ENTROPY:
         self.__weights = None
 
     def __normalize(self):
-        """ 指标正向化 + 极差标准化 """
         X = self.__inputMatrix.copy()
         for j in range(self.n):
             if self.indicator_type[j] == 'cost':
@@ -158,21 +145,14 @@ class ENTROPY:
         return X_norm
 
     def __calculate_weights(self):
-        """ 熵权计算 """
         X_norm = self.__normalize()
         eps = 1e-12
 
-        # 比例矩阵（确保非负）
         P = X_norm / (X_norm.sum(axis=0) + eps)
-
-        # 检查是否全为0（避免log(0)）
         k = 1.0 / numpy.log(self.m + eps)
         E = -k * numpy.sum(P * numpy.log(P + eps), axis=0)
 
-        # 差异系数
         d = 1 - E
-
-        # 如果所有熵值都接近1，权重应该均匀分布
         if numpy.all(d < eps):
             self.__weights = numpy.ones(self.n) / self.n
         else:
@@ -181,19 +161,14 @@ class ENTROPY:
         return self.__weights
 
     def process(self):
-        """
-        一键运行完整熵权法流程，返回指标权重
-        """
         return self.__calculate_weights()
 
     def get_normalized_matrix(self):
-        """ 获取标准化后的矩阵 """
         if self.__normalizedMatrix is None:
             self.__normalize()
         return self.__normalizedMatrix
 
     def get_weights(self):
-        """ 获取已计算的权重（若未计算则调用 process） """
         if self.__weights is None:
             return self.process()
         return self.__weights
@@ -201,15 +176,6 @@ class ENTROPY:
 
 class TOPSIS:
     def __init__(self, matrixIn: numpy.ndarray, weights=None, benefit_attributes=None):
-        """
-        初始化TOPSIS类
-
-        参数:
-        matrixIn: 决策矩阵 (n个方案 × m个指标)
-        weights: 权重向量 (长度m)，如果为None则等权重
-        benefit_attributes: 布尔数组，True表示效益型指标，False表示成本型指标
-                          如果为None，则默认所有指标为效益型
-        """
         self.__inputMatrix = matrixIn.astype(float)
         self.n_alternatives, self.n_criteria = matrixIn.shape
 
@@ -221,7 +187,6 @@ class TOPSIS:
                 raise ValueError(f"权重数量({len(weights)})必须与指标数量({self.n_criteria})一致")
             self.__weights = numpy.array(weights) / numpy.sum(weights)  # 归一化权重
 
-        # 设置指标类型
         if benefit_attributes is None:
             self.__benefit_attributes = numpy.ones(self.n_criteria, dtype=bool)
         else:
@@ -294,8 +259,6 @@ class TOPSIS:
         return positive_ideal, negative_ideal
 
     def __calculate_distances(self, weighted_matrix, positive_ideal, negative_ideal):
-        """计算各方案到正负理想解的距离"""
-        # 使用欧氏距离
         d_plus = numpy.sqrt(numpy.sum((weighted_matrix - positive_ideal) ** 2, axis=1))
         d_minus = numpy.sqrt(numpy.sum((weighted_matrix - negative_ideal) ** 2, axis=1))
 
@@ -311,15 +274,6 @@ class TOPSIS:
         return closeness
 
     def process(self, normalization_method='linear'):
-        """
-        执行TOPSIS分析
-
-        参数:
-        normalization_method: 归一化方法，可选 'linear', 'vector', 'minmax', 'zscore'
-
-        返回:
-        dict: 包含排序结果和各中间结果的字典
-        """
         # 1. 归一化决策矩阵
         if normalization_method == 'vector':
             norm_matrix = self.__vector_normalization()
@@ -348,7 +302,6 @@ class TOPSIS:
         from scipy.stats import rankdata
         rank = rankdata(-closeness, method='min')  # 贴近度越大越好
 
-        # 返回所有结果
         results = {
             'normalized_matrix': norm_matrix,
             'weighted_matrix': weighted_matrix,
@@ -365,16 +318,6 @@ class TOPSIS:
         return results
 
     def process_with_custom_weights(self, weights, normalization_method='linear'):
-        """
-        使用自定义权重执行TOPSIS分析
-
-        参数:
-        weights: 自定义权重向量
-        normalization_method: 归一化方法
-
-        返回:
-        同process方法
-        """
         # 临时保存原始权重
         original_weights = self.__weights.copy()
 
@@ -413,33 +356,7 @@ def gameTheory(vectorIn1:numpy.ndarray,vectorIn2:numpy.ndarray):
 
 
 def fuse_weights(w_s, w_o, method='MDI_reverse', alpha=0.5, eps=1e-12):
-    """
-    融合主观权重 w_s 与客观权重 w_o 的多种方法。
 
-    参数：
-        w_s : array_like, shape (n,)
-            主观权重向量（如 FAHP 得到），应非负且归一化或非归一化（函数会处理）。
-        w_o : array_like, shape (n,)
-            客观权重向量（如 MEREC 得到），同上。
-        method : str, 融合方法选择，支持：
-            - 'MDI_forward' : 最小化 D_KL(w || w_s)*alpha + D_KL(w || w_o)*(1-alpha)
-                              -> 归一化几何平均： w_i ∝ w_si^alpha * w_oi^(1-alpha)
-            - 'MDI_reverse' : 最小化 D_KL(w_s || w)*alpha + D_KL(w_o || w)*(1-alpha)
-                              -> 归一化加权和： w_i ∝ alpha*w_si + (1-alpha)*w_oi
-            - 'linear'      : 线性融合： w = alpha*w_s + (1-alpha)*w_o (再归一化)
-            - 'least_squares': 最小二乘最小偏差（求使 w 最小化 alpha||w-w_s||^2 + (1-alpha)||w-w_o||^2）
-                              -> 闭式解同样是加权算术平均（见数学推导）
-            - 'geometric'   : 直接几何平均（alpha 控制指数）： w_i ∝ w_si^alpha * w_oi^(1-alpha)
-                              （与 MDI_forward 等价）
-        alpha : float in [0,1]
-            融合系数，越接近1则主观权重越重要。
-        eps : float
-            为避免 log(0) 或除以 0 的数值问题，向量中会加入下限 eps。
-
-    返回：
-        w : np.ndarray, shape (n,)
-            融合后归一化的权重向量（和为1，所有分量 >= 0）。
-    """
     w_s = numpy.asarray(w_s, dtype=float).flatten()
     w_o = numpy.asarray(w_o, dtype=float).flatten()
     if w_s.shape != w_o.shape:
@@ -483,6 +400,7 @@ def fuse_weights(w_s, w_o, method='MDI_reverse', alpha=0.5, eps=1e-12):
 
     raise ValueError(
         f"Unknown method '{method}'. Supported: 'MDI_forward','MDI_reverse','linear','least_squares','geometric'.")
+
 
 
 
