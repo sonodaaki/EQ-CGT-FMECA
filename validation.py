@@ -365,16 +365,3 @@ if __name__ == '__main__':
     TFNMatrix = [TFN1, TFN2, TFN3, TFN4, TFN5, TFN6]
     test = validationProcess(expertNumber,failureNumber,TFNMatrix,XS,XO,XD,NAInput)
     print(test.integratedApproachSensitiveAnalysis(0.5,0.5))
-    # print(test.ENTROPY_TOPSIS())
-    # print(test.FAHP_TOPSIS())
-    # print(test.singleCRITIC())
-    # print(test.singleENTROPY())
-    # print(test.singleFMECA())
-    # print(test.singleFAHP())
-    # print(test.singleMEREC())
-    # print(test.withoutExpertQualification())
-    # print(test.integratedApproach())
-    # words = ['整流','TCU','电机','牵引电机','主断','弓','变压','直流']
-    # for w in words:
-    #     res = test.searchKeywords(w)
-    #     excelOutput(f"valFiles/{w}.xls",res)
