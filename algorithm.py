@@ -1,7 +1,5 @@
 import numpy
 
-from matrixProcess import *
-
 
 def posterioriProcess(inputMatrix:numpy.ndarray):
     matrixShape = numpy.shape(inputMatrix)
@@ -485,5 +483,6 @@ def fuse_weights(w_s, w_o, method='MDI_reverse', alpha=0.5, eps=1e-12):
 
     raise ValueError(
         f"Unknown method '{method}'. Supported: 'MDI_forward','MDI_reverse','linear','least_squares','geometric'.")
+
 
 
